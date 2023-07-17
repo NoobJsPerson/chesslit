@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "homepage" : "http://yourgithubname.github.io/chesslit",
+  "homepage" : "http://noobjsperson.github.io/chesslit",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
