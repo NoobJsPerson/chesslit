@@ -1,9 +1,9 @@
 import { Chess } from "https://cdn.jsdelivr.net/npm/chess.mjs@1/src/chess.mjs/Chess.js"
 import { INPUT_EVENT_TYPE, COLOR, Chessboard, BORDER_TYPE } from "./node_modules/cm-chessboard/src/cm-chessboard/Chessboard.js"
-import { MARKER_TYPE, Markers } from "./node_modules/cm-chessboard/src/cm-chessboard/extensions/markers/Markers.js"
-import { PromotionDialog } from "./node_modules/cm-chessboard/src/cm-chessboard/extensions/promotion-dialog/PromotionDialog.js"
-import { Accessibility } from "./node_modules/cm-chessboard/src/cm-chessboard/extensions/accessibility/Accessibility.js"
-import { FEN } from "./node_modules/cm-chessboard/src/cm-chessboard/model/Position.js"
+import { MARKER_TYPE, Markers } from "./cm-chessboard/extensions/markers/Markers.js"
+import { PromotionDialog } from "./cm-chessboard/extensions/promotion-dialog/PromotionDialog.js"
+import { Accessibility } from "./cm-chessboard/extensions/accessibility/Accessibility.js"
+import { FEN } from "./cm-chessboard/model/Position.js"
 import eco_codes from './codes.json' assert { type: 'json' };
 
 
