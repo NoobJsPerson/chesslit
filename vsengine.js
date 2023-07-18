@@ -17,10 +17,10 @@ window.chess = chess
 function makeEngineMove(chessboard) {
 	const possibleMoves = chess.moves()
 	if (possibleMoves.length > 0) {
-		const engineMove = calculate(chess.fen())
+		const engineMove = calculate(chess, 3)
 		console.log(engineMove)
 		setTimeout(() => { // smoother with 500ms delay
-			chess.move(engineMove.move)
+			chess.move(engineMove.parentMove)
 			chessboard.setPosition(chess.fen(), true)
 			chessboard.enableMoveInput(inputHandler, COLOR.white)
 		}, 500)
