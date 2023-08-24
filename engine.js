@@ -69,7 +69,7 @@ function calculate(chess, depth) {
 				return
 			} else {
 				const pushMoves = myMoves.filter(x => x != 'ignore')
-				moves.push(...myMoves);
+				moves.push(...pushMoves);
 			}
 			return;
 		}
@@ -117,7 +117,7 @@ function calculate(chess, depth) {
 			})*/
 			if (first) parentMove = move;
 			searchMoves[i] = new Move(searchMoves[i], realEvaluation, parentMove)
-			search(chess, depth - 1, parentMove, true, searchMoves, false);
+			search(chess, depth - 1, parentMove, true, chess.moves(), false);
 			chess.load(fen);
 		}
 
