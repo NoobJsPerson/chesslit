@@ -9,7 +9,7 @@ class Move {
 		// this.pgn = pgn
 	}
 }
-function evaluate(chess) {
+function evaluate(chess, plMoves) {
 	let result = 0;
 	const pieceValues = {
 		n: 3,
@@ -40,6 +40,8 @@ function evaluate(chess) {
 	// });
 	if (chess.in_checkmate()) result = 10000;
 	if (chess.in_draw()) result = 0;
+	result += (plMoves.length - chess.moves().length) * 0.1
+
 	// const lastMove = chess.history({verbose: true});
 
 	// if(chess.in_check()) result += 1;
@@ -51,13 +53,11 @@ function calculate(chess, depth) {
 	let moves = chess.moves();
 	let bestMove = null;
 	let bestScore = -Infinity
-	const realFen = chess.fen()
 	// const beginningDepth = depth;
-	function negamax(chess, depth, alpha, beta, color) {
-		const fen = chess.fen();
+	function negamax(chess, depth, alpha, beta, color, plMoves) {
 
-		if (depth == 0 || chess.in_checkmate()) {
-			return color * evaluate(chess);
+		if (depth == 0) {
+			return color * evaluate(chess, plMoves);
 		}
 		let bestScore = -Infinity;
 		const searchMoves = chess.moves();
@@ -65,13 +65,13 @@ function calculate(chess, depth) {
 		for (let i = 0; i < searchMoves.length; i++) {
 			const move = searchMoves[i];
 			chess.move(move);
-			const score = -negamax(chess, depth - 1, -beta, -alpha, -color)
-			chess.load(fen);
+			const score = -negamax(chess, depth - 1, -beta, -alpha, -color, searchMoves)
+			chess.undo()
 			bestScore = Math.max(score, bestScore);
 			alpha = Math.max(alpha, score);
 			if (alpha >= beta) break;
 		}
-		chess.load(fen);
+		// chess.undo()
 		return bestScore;
 	}
 
@@ -79,7 +79,7 @@ function calculate(chess, depth) {
 		const move = moves[i];
 		chess.move(move);
 		const score = -negamax(chess, depth - 1, -Infinity, Infinity, 1)
-		chess.load(realFen);
+		chess.undo();
 		if (score > bestScore) {
 			bestScore = score;
 			bestMove = move
@@ -109,7 +109,7 @@ function calculate(chess, depth) {
 // 			eval: Math.min(...(enemyMoves.map(x => x.eval)))
 // 		}
 
-// 		currentchess.load(fen);
+// 		currentchess.undo()
 // 		console.log(moves[i].eval)
 // 	}
 // 	return moves.toSorted((a, b) => b.eval - a.eval)[0]

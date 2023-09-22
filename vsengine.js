@@ -13,11 +13,14 @@ import { calculate, evaluate } from "./engine.js"
 const ecoSpan = document.getElementById("ecoId");
 const chess = new Chess()
 window.chess = chess
+
 // let turn = true;
 function makeEngineMove(chessboard) {
 	const possibleMoves = chess.moves()
 	if (possibleMoves.length > 0) {
-		const engineMove = calculate(chess, 2)
+		let engineMove
+		if(possibleMoves.length == 1) engineMove = possibleMoves[0];
+		else engineMove = calculate(chess, 2);
 		console.log(engineMove)
 		setTimeout(() => { // smoother with 500ms delay
 			chess.move(engineMove)
@@ -79,7 +82,7 @@ function inputHandler(event) {
 		return result
 	}
 }
-const board = new Chessboard(document.getElementById("containerId"),
+let board = new Chessboard(document.getElementById("containerId"),
 	{
 		position: FEN.start,
 		style: { borderType: BORDER_TYPE.none, pieces: { file: "staunty.svg" } },
@@ -89,4 +92,8 @@ const board = new Chessboard(document.getElementById("containerId"),
 			{ class: Accessibility, props: { visuallyHidden: true } }
 		]
 	})
+window.board = board;
+
 board.enableMoveInput(inputHandler, COLOR.white)
+
+
