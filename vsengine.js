@@ -7,7 +7,7 @@ import { FEN } from "./cm-chessboard/model/Position.js"
 import eco_codes from './codes.json' assert { type: 'json' };
 
 
-import { calculate, evaluate } from "./engine.js"
+import { calculate } from "./engine.js"
 
 
 const ecoSpan = document.getElementById("ecoId");

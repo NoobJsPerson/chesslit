@@ -1,14 +1,65 @@
-import { Chess } from "https://cdn.jsdelivr.net/npm/chess.mjs@1/src/chess.mjs/Chess.js"
-
-class Move {
-	constructor(move, evaluation, parentMove) {
-		this.eval = evaluation;
-		this.move = move;
-		this.parentMove = parentMove;
-		// this.line = ''
-		// this.pgn = pgn
-	}
+const zobristKeys = [];
+for (let i = 1; i <= 64; i++) {
+	zobristKeys.push({
+		wk: Math.floor(Math.random() * 2 ** 64),
+		bk: Math.floor(Math.random() * 2 ** 64),
+		wp: Math.floor(Math.random() * 2 ** 64),
+		bp: Math.floor(Math.random() * 2 ** 64),
+		wr: Math.floor(Math.random() * 2 ** 64),
+		br: Math.floor(Math.random() * 2 ** 64),
+		wp: Math.floor(Math.random() * 2 ** 64),
+		bp: Math.floor(Math.random() * 2 ** 64),
+		wn: Math.floor(Math.random() * 2 ** 64),
+		bn: Math.floor(Math.random() * 2 ** 64),
+		wq: Math.floor(Math.random() * 2 ** 64),
+		bq: Math.floor(Math.random() * 2 ** 64)
+	})
 }
+function squareToNumber(sqaure) {
+	return (sqaure.charCodeAt(0) - 97) + (8 - (+sqaure[1])) * 8 // 97 is the char code for a
+}
+function updateZobristKey(zobristKey, move) {
+	let result = zobristKey
+	if (move.flags.includes('k')) {
+		const kingFile = move.color == 'w' ? 7 : 0;
+		result ^= zobristKeys[kingFile * 8 + 4][move.color + 'k'] // remove king from the e file
+		result ^= zobristKeys[kingFile * 8 + 6][move.color + 'k'] // put the king in the g file
+		result ^= zobristKeys[kingFile * 8 + 7][move.color + 'r'] // remove rook from the h file
+		result ^= zobristKeys[kingFile * 8 + 5][move.color + 'r'] // put the rook in the f file
+		return result;
+	}
+	if (move.flags.includes('q')) {
+		const kingFile = move.color == 'w' ? 7 : 0;
+		result ^= zobristKeys[kingFile * 8 + 4][move.color + 'k'] // remove king from the e file
+		result ^= zobristKeys[kingFile * 8 + 2][move.color + 'k'] // put the king in the c file
+		result ^= zobristKeys[kingFile * 8 + 0][move.color + 'r'] // remove rook from the a file
+		result ^= zobristKeys[kingFile * 8 + 5][move.color + 'r'] // put the rook in the d file
+		return result;
+	}
+	if (zobristKeys[squareToNumber(move.to)] === undefined) console.log('Square: ', move.to, ' Value: ', squareToNumber(move.to))
+	result ^= zobristKeys[squareToNumber(move.from)][move.color + move.piece] ^ zobristKeys[squareToNumber(move.to)][move.color + (move.promotion || move.piece)];
+	if (move.captured) {
+		const oppositeColor = move.color == 'w' ? 'b' : 'w'
+		let enPassantOffset = (oppositeColor == "b" ? 1 : -1) * (move.flags.includes('e') ? 8 : 0);
+		result ^= zobristKeys[squareToNumber(move.to) + enPassantOffset][oppositeColor + (move.promotion || move.captured)];
+	}
+
+	return result
+}
+function getZobristKey(chess) {
+	const keys = [];
+	const board = chess.board();
+	for (let i = 0; i < board.length; i++) {
+		for (let j = 0; j < board[i].length; j++) {
+			const square = board[i][j];
+			if (square != null) {
+				keys.push(zobristKeys[i * 8 + j][square.color + square.type])
+			}
+		}
+	}
+	return keys.reduce((xored, toxor) => xored ^ toxor)
+}
+window.getZobristKey = getZobristKey
 function evaluate(chess, plMoves) {
 	let result = 0;
 	const pieceValues = {
@@ -40,7 +91,7 @@ function evaluate(chess, plMoves) {
 	// });
 	if (chess.in_checkmate()) result = 10000;
 	if (chess.in_draw()) result = 0;
-	result += (plMoves.length - chess.moves().length) * 0.1
+	if (plMoves?.length) result += (plMoves.length - chess.moves().length) * 0.1
 
 	// const lastMove = chess.history({verbose: true});
 
@@ -53,32 +104,38 @@ function calculate(chess, depth) {
 	let moves = chess.moves();
 	let bestMove = null;
 	let bestScore = -Infinity
+	let transpositionTable = Object.create(null);
 	// const beginningDepth = depth;
-	function negamax(chess, depth, alpha, beta, color, plMoves) {
+	function negamax(chess, depth, alpha, beta, color, plMoves, zobristKey) {
 
 		if (depth == 0) {
 			return color * evaluate(chess, plMoves);
 		}
+		// if(!zobristKey) zobristKey = getZobristKey(chess);
+		if (zobristKey in transpositionTable) return transpositionTable[zobristKey];
 		let bestScore = -Infinity;
-		const searchMoves = chess.moves();
+		const searchMoves = chess.moves({ verbose: true });
 
 		for (let i = 0; i < searchMoves.length; i++) {
 			const move = searchMoves[i];
 			chess.move(move);
+			zobristKey = updateZobristKey(zobristKey, move)
 			const score = -negamax(chess, depth - 1, -beta, -alpha, -color, searchMoves)
 			chess.undo()
+			zobristKey = updateZobristKey(zobristKey, move)
 			bestScore = Math.max(score, bestScore);
 			alpha = Math.max(alpha, score);
 			if (alpha >= beta) break;
 		}
 		// chess.undo()
+		transpositionTable[zobristKey] = bestMove;
 		return bestScore;
 	}
 
 	for (let i = 0; i < moves.length; i++) {
 		const move = moves[i];
 		chess.move(move);
-		const score = -negamax(chess, depth - 1, -Infinity, Infinity, 1)
+		const score = -negamax(chess, depth - 1, -Infinity, Infinity, 1, [], getZobristKey(chess))
 		chess.undo();
 		if (score > bestScore) {
 			bestScore = score;
@@ -87,32 +144,4 @@ function calculate(chess, depth) {
 	}
 	return bestMove;
 }
-
-// function calculate(fen, depth){
-// 	const currentchess = new Chess(fen);
-// 	const moves = currentchess.moves()
-// 	for(let i = 0; i < moves.length; i++) {
-// 		currentchess.move(moves[i]);
-// 		const currentfen = currentchess.fen()
-// 		const enemyMoves = currentchess.moves()
-// 		for(let j = 0; j < enemyMoves.length; j++){
-// 			currentchess.move(enemyMoves[j])
-// 			// enemyMoves[j] = new Move(enemyMoves[j],-1 * evaluate(currentchess));
-// 			// if(!currentchess.in_checkmate() || !currentchess.in_draw()) enemyMoves[j] = getBestMoveInCurrentDepth(currentchess.fen(), currentchess);
-// 			if(currentchess.in_checkmate()) enemyMoves[j] = new Move(null, -Infinity);
-// 			else if(currentchess.in_draw()) enemyMoves[j] = new Move(null, 0);
-// 			else enemyMoves[j] = getBestMoveInCurrentDepth(currentchess.fen(), currentchess);
-// 			currentchess.load(currentfen)
-// 		}
-// 		moves[i] = {
-// 			move: moves[i],
-// 			eval: Math.min(...(enemyMoves.map(x => x.eval)))
-// 		}
-
-// 		currentchess.undo()
-// 		console.log(moves[i].eval)
-// 	}
-// 	return moves.toSorted((a, b) => b.eval - a.eval)[0]
-
-// }
 export { calculate, evaluate }
