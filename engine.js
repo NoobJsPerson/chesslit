@@ -120,7 +120,7 @@ function calculate(chess, depth) {
 			const move = searchMoves[i];
 			chess.move(move);
 			zobristKey = updateZobristKey(zobristKey, move)
-			const score = -negamax(chess, depth - 1, -beta, -alpha, -color, searchMoves)
+			const score = -negamax(chess, depth - 1, -beta, -alpha, -color, searchMoves, zobristKey)
 			chess.undo()
 			zobristKey = updateZobristKey(zobristKey, move)
 			bestScore = Math.max(score, bestScore);
