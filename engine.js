@@ -1,18 +1,18 @@
 const zobristKeys = [];
 for (let i = 1; i <= 64; i++) {
 	zobristKeys.push({
-		wk: Math.floor(Math.random() * 2 ** 64),
-		bk: Math.floor(Math.random() * 2 ** 64),
-		wp: Math.floor(Math.random() * 2 ** 64),
-		bp: Math.floor(Math.random() * 2 ** 64),
-		wr: Math.floor(Math.random() * 2 ** 64),
-		br: Math.floor(Math.random() * 2 ** 64),
-		wp: Math.floor(Math.random() * 2 ** 64),
-		bp: Math.floor(Math.random() * 2 ** 64),
-		wn: Math.floor(Math.random() * 2 ** 64),
-		bn: Math.floor(Math.random() * 2 ** 64),
-		wq: Math.floor(Math.random() * 2 ** 64),
-		bq: Math.floor(Math.random() * 2 ** 64)
+		wk: Math.floor(Math.random() * 2 ** 32),
+		bk: Math.floor(Math.random() * 2 ** 32),
+		bp: Math.floor(Math.random() * 2 ** 32),
+		wp: Math.floor(Math.random() * 2 ** 32),
+		wr: Math.floor(Math.random() * 2 ** 32),
+		br: Math.floor(Math.random() * 2 ** 32),
+		wn: Math.floor(Math.random() * 2 ** 32),
+		bn: Math.floor(Math.random() * 2 ** 32),
+		wq: Math.floor(Math.random() * 2 ** 32),
+		bq: Math.floor(Math.random() * 2 ** 32),
+		bb: Math.floor(Math.random() * 2 ** 32),
+		wb: Math.floor(Math.random() * 2 ** 32)
 	})
 }
 function squareToNumber(sqaure) {
