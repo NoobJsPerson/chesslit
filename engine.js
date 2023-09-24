@@ -1,18 +1,19 @@
+// TODO: implement pawn bitboards;
 const zobristKeys = [];
 for (let i = 1; i <= 64; i++) {
 	zobristKeys.push({
-		wk: Math.floor(Math.random() * 2 ** 64),
-		bk: Math.floor(Math.random() * 2 ** 64),
-		wp: Math.floor(Math.random() * 2 ** 64),
-		bp: Math.floor(Math.random() * 2 ** 64),
-		wr: Math.floor(Math.random() * 2 ** 64),
-		br: Math.floor(Math.random() * 2 ** 64),
-		wp: Math.floor(Math.random() * 2 ** 64),
-		bp: Math.floor(Math.random() * 2 ** 64),
-		wn: Math.floor(Math.random() * 2 ** 64),
-		bn: Math.floor(Math.random() * 2 ** 64),
-		wq: Math.floor(Math.random() * 2 ** 64),
-		bq: Math.floor(Math.random() * 2 ** 64)
+		wk: Math.floor(Math.random() * 2 ** 32),
+		bk: Math.floor(Math.random() * 2 ** 32),
+		bp: Math.floor(Math.random() * 2 ** 32),
+		wp: Math.floor(Math.random() * 2 ** 32),
+		wr: Math.floor(Math.random() * 2 ** 32),
+		br: Math.floor(Math.random() * 2 ** 32),
+		wn: Math.floor(Math.random() * 2 ** 32),
+		bn: Math.floor(Math.random() * 2 ** 32),
+		wq: Math.floor(Math.random() * 2 ** 32),
+		bq: Math.floor(Math.random() * 2 ** 32),
+		bb: Math.floor(Math.random() * 2 ** 32),
+		wb: Math.floor(Math.random() * 2 ** 32)
 	})
 }
 function squareToNumber(sqaure) {
@@ -103,7 +104,9 @@ function evaluate(chess, plMoves) {
 function calculate(chess, depth) {
 	let moves = chess.moves();
 	let bestMove = null;
-	let bestScore = -Infinity
+	const isDepthOdd = depth % 2 === 1;
+	console.log(isDepthOdd)
+	let bestScore = isDepthOdd ? Infinity : -Infinity;
 	let transpositionTable = Object.create(null);
 	// const beginningDepth = depth;
 	function negamax(chess, depth, alpha, beta, color, plMoves, zobristKey) {
@@ -120,7 +123,7 @@ function calculate(chess, depth) {
 			const move = searchMoves[i];
 			chess.move(move);
 			zobristKey = updateZobristKey(zobristKey, move)
-			const score = -negamax(chess, depth - 1, -beta, -alpha, -color, searchMoves)
+			const score = -negamax(chess, depth - 1, -beta, -alpha, -color, searchMoves, zobristKey)
 			chess.undo()
 			zobristKey = updateZobristKey(zobristKey, move)
 			bestScore = Math.max(score, bestScore);
@@ -131,13 +134,64 @@ function calculate(chess, depth) {
 		transpositionTable[zobristKey] = bestMove;
 		return bestScore;
 	}
+	function oddnegamax(chess, depth, alpha, beta, color, plMoves, zobristKey) {
+
+		if (depth == 0) {
+			return color * evaluate(chess, plMoves);
+		}
+		if (zobristKey in transpositionTable) return transpositionTable[zobristKey];
+		// console.log(isDepthOdd)
+		// if (true) {
+			// console.log('in true wtf is')
+			let bestScore = Infinity;
+			const searchMoves = chess.moves({ verbose: true });
+
+			for (let i = 0; i < searchMoves.length; i++) {
+				const move = searchMoves[i];
+				chess.move(move);
+				zobristKey = updateZobristKey(zobristKey, move)
+				const score = -negamax(chess, depth - 1, -beta, -alpha, -color, searchMoves, zobristKey)
+				chess.undo()
+				zobristKey = updateZobristKey(zobristKey, move)
+				bestScore = Math.min(score, bestScore);
+				alpha = Math.min(alpha, score);
+				if (alpha <= beta) break;
+			}
+		// } 
+		// else {
+		// 	let bestScore = -Infinity;
+		// 	const searchMoves = chess.moves({ verbose: true });
+
+		// 	for (let i = 0; i < searchMoves.length; i++) {
+		// 		const move = searchMoves[i];
+		// 		chess.move(move);
+		// 		zobristKey = updateZobristKey(zobristKey, move)
+		// 		const score = -negamax(chess, depth - 1, -beta, -alpha, -color, searchMoves)
+		// 		chess.undo()
+		// 		zobristKey = updateZobristKey(zobristKey, move)
+		// 		bestScore = Math.max(score, bestScore);
+		// 		alpha = Math.max(alpha, score);
+		// 		if (alpha >= beta) break;
+		// 	}
+		// }
+		// // chess.undo()
+
+		transpositionTable[zobristKey] = bestMove;
+		return bestScore;
+	}
 
 	for (let i = 0; i < moves.length; i++) {
 		const move = moves[i];
 		chess.move(move);
-		const score = -negamax(chess, depth - 1, -Infinity, Infinity, 1, [], getZobristKey(chess))
+		// let alpha = -Infinity
+		// let beta = Infinity
+		// if(isDepthOdd) {
+		// 	alpha *= -1
+		// 	beta *= -1
+		// }
+		const score = isDepthOdd ? -oddnegamax(chess, depth - 1, Infinity, -Infinity, 1, [], getZobristKey(chess)) : -negamax(chess, depth - 1, -Infinity, Infinity, 1, [], getZobristKey(chess))
 		chess.undo();
-		if (score > bestScore) {
+		if (isDepthOdd ? score < bestScore : score > bestScore) {
 			bestScore = score;
 			bestMove = move
 		}

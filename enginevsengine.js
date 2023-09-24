@@ -19,13 +19,14 @@ function makeEngineMove(chessboard) {
 	if (possibleMoves.length > 0) {
 		let engineMove
 		if(possibleMoves.length == 1) engineMove = possibleMoves[0];
-		else engineMove = calculate(chess, 3);
+		else engineMove = calculate(chess, 2);
 		console.log(engineMove)
 		setTimeout(() => { // smoother with 500ms delay
 			chess.move(engineMove)
 			chessboard.setPosition(chess.fen(), true)
-			chessboard.enableMoveInput(inputHandler, COLOR.white)
-		}, 500)
+			// chessboard.enableMoveInput(inputHandler, COLOR.white)
+			makeEngineMove(chessboard)
+		}, 600)
 	}
 }
 function inputHandler(event) {
@@ -51,6 +52,7 @@ function inputHandler(event) {
 			event.chessboard.disableMoveInput()
 			this.chessboard.state.moveInputProcess.then(() => { // wait for the move input process has finished
 				this.chessboard.setPosition(chess.fen(), true).then(() => { // update position, maybe castled and wait for animation has finished
+					ecoSpan.innerText = eco_codes[chess.fen().split(' ').slice(0,3).join(' ')]?.name || ecoSpan.innerText
 					// turn = !turn
 					makeEngineMove(event.chessboard)
 				})
@@ -65,7 +67,6 @@ function inputHandler(event) {
 						if (result) {
 							chess.move({ from: event.squareFrom, to: event.squareTo, promotion: result.piece.charAt(1) })
 							event.chessboard.setPosition(chess.fen(), true)
-							ecoSpan.innerText = eco_codes[chess.fen().split('-')[0].trim()]?.name || ecoSpan.innerText
 							makeEngineMove(event.chessboard)
 
 						} else {
@@ -92,6 +93,7 @@ let board = new Chessboard(document.getElementById("containerId"),
 	})
 window.board = board;
 
-board.enableMoveInput(inputHandler, COLOR.white)
+// board.enableMoveInput(inputHandler, COLOR.white)
+makeEngineMove(board)
 
 
