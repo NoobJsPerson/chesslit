@@ -24,7 +24,7 @@ function makeEngineMove(chessboard) {
 		setTimeout(() => { // smoother with 500ms delay
 			chess.move(engineMove)
 			chessboard.setPosition(chess.fen(), true)
-			chessboard.enableMoveInput(inputHandler, COLOR.white)
+			chessboard.enableMoveInput(inputHandler, COLOR.black)
 		}, 500)
 	}
 }
@@ -91,6 +91,6 @@ let board = new Chessboard(document.getElementById("containerId"),
 	})
 window.board = board;
 
-board.enableMoveInput(inputHandler, COLOR.white)
+makeEngineMove(board)
 
 
