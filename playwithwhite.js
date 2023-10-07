@@ -22,6 +22,10 @@ function makeEngineMove(chessboard) {
 		else engineMove = calculate(chess, 3);
 		console.log(engineMove)
 		setTimeout(() => { // smoother with 500ms delay
+			if(chess.game_over()) {
+				console.log('game over')
+				return
+			}
 			chess.move(engineMove)
 			chessboard.setPosition(chess.fen(), true)
 			chessboard.enableMoveInput(inputHandler, COLOR.black)

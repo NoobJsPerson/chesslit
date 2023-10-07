@@ -1,5 +1,42 @@
-// TODO: implement pawn bitboards;
 // TODO: implement PV;
+// TODO: fix countIsolatedPawns
+// function countIsolatedPawns(chess, side) {
+// 	const board = chess.board()
+// 	let lastRowEmpty = false;
+// 	let nextRowEmpty = false;
+// 	let isolatedPawns = 0;
+// 	for (let j = 0; j < board.length; j++) {
+// 		let fileHasPawn = false;
+
+// 		for (let i = 0; i < board[j].length; i++) {
+// 			const square = board[i][j];
+// 			if (!fileHasPawn && square?.type == 'p' && square.color == side) fileHasPawn = true;
+// 		}
+// 		if (fileHasPawn) {
+// 			if (lastRowEmpty) lastRowEmpty = false
+// 			else {
+// 				lastRowEmpty = true
+// 				for (let i = 0; i < board[j].length; i++) {
+// 					const square = board[i]?.[j-1];
+// 					if (lastRowEmpty && square?.type == 'p' && square.color == side) lastRowEmpty = false;
+// 				}
+// 			}
+// 			if (nextRowEmpty) {
+// 				nextRowEmpty = false;
+// 			}
+// 			else {
+// 				nextRowEmpty = true
+// 				for (let i = 0; i < board[j].length; i++) {
+// 					const square = board[i]?.[j+1];
+// 					if (nextRowEmpty && square?.type == 'p' && square.color == side) nextRowEmpty = false;
+// 				}
+// 			}
+
+// 			if (nextRowEmpty && lastRowEmpty) isolatedPawns++;
+// 		}
+// 	}
+// 	return isolatedPawns
+// }
 const zobristKeys = [];
 const pieceValues = {
 	n: 3,
@@ -25,25 +62,41 @@ for (let i = 1; i <= 64; i++) {
 		wb: Math.floor(Math.random() * 2 ** 32)
 	})
 }
-function quiescenceSearch (alpha, beta, chess, plMoves, engineSide, color) {
+
+function quiescenceSearch(alpha, beta, chess, plMoves, engineSide, color, isDepthOdd) {
 	const moves = chess.moves();
-	const stand_pat = color * evaluate(chess, plMoves, engineSide);
-	if(stand_pat >= beta) return beta;
-	if(alpha < stand_pat) alpha = stand_pat
+	// console.log()
+	const stand_pat = color * evaluate(chess, plMoves, engineSide, isDepthOdd);
+	if (stand_pat >= beta) return beta;
+	if (alpha < stand_pat) alpha = stand_pat
 	let captures = moves.filter(x => x.includes('x'));
-	if(captures.length == 0) return alpha;
-	for(const capture of captures){
+	if (captures.length == 0) return alpha;
+	for (const capture of captures) {
 		// const newplMoves = chess.moves();
 		chess.move(capture);
 		let score = -quiescenceSearch(-beta, -alpha, chess, moves, engineSide, -color)
 		chess.undo();
-		if(score >= beta) return beta;
-		if(alpha < score) alpha = score;
+		if (score >= beta) return beta;
+		if (alpha < score) alpha = score;
 	}
 	return alpha
 }
 function squareToNumber(sqaure) {
 	return (sqaure.charCodeAt(0) - 97) + (8 - (+sqaure[1])) * 8 // 97 is the char code for a
+}
+
+function countDoubledPawns(chess, side) {
+	const board = chess.board();
+	let doubledPawns = 0;
+	for (let j = 0; j < board.length; j++) {
+		let pawnsPerFile = 0;
+		for (let i = 0; i < board[j].length; i++) {
+			const square = board[i][j];
+			if (square?.type == 'p' && square.color == side) pawnsPerFile++;
+		}
+		doubledPawns += (pawnsPerFile === 1) ? 0 : pawnsPerFile;
+	}
+	return doubledPawns
 }
 // static exchange evaluation
 function see(chess, moves, square) {
@@ -62,20 +115,21 @@ function updateZobristKey(zobristKey, move) {
 	if (move.flags.includes('k')) {
 		const kingFile = move.color == 'w' ? 7 : 0;
 		result ^= zobristKeys[kingFile * 8 + 4][move.color + 'k'] // remove king from the e file
-		result ^= zobristKeys[kingFile * 8 + 6][move.color + 'k'] // put the king in the g file
-		result ^= zobristKeys[kingFile * 8 + 7][move.color + 'r'] // remove rook from the h file
-		result ^= zobristKeys[kingFile * 8 + 5][move.color + 'r'] // put the rook in the f file
+			^ zobristKeys[kingFile * 8 + 6][move.color + 'k'] // put the king in the g file
+			^ zobristKeys[kingFile * 8 + 7][move.color + 'r'] // remove rook from the h file
+			^ zobristKeys[kingFile * 8 + 5][move.color + 'r'] // put the rook in the f file
 		return result;
 	}
 	if (move.flags.includes('q')) {
 		const kingFile = move.color == 'w' ? 7 : 0;
 		result ^= zobristKeys[kingFile * 8 + 4][move.color + 'k'] // remove king from the e file
-		result ^= zobristKeys[kingFile * 8 + 2][move.color + 'k'] // put the king in the c file
-		result ^= zobristKeys[kingFile * 8 + 0][move.color + 'r'] // remove rook from the a file
-		result ^= zobristKeys[kingFile * 8 + 5][move.color + 'r'] // put the rook in the d file
+			^ zobristKeys[kingFile * 8 + 2][move.color + 'k'] // put the king in the c file
+			^ zobristKeys[kingFile * 8 + 0][move.color + 'r'] // remove rook from the a file
+			^ zobristKeys[kingFile * 8 + 5][move.color + 'r'] // put the rook in the d file
 		return result;
 	}
-	result ^= zobristKeys[squareToNumber(move.from)][move.color + move.piece] ^ zobristKeys[squareToNumber(move.to)][move.color + (move.promotion || move.piece)];
+	result ^= zobristKeys[squareToNumber(move.from)][move.color + move.piece]
+		^ zobristKeys[squareToNumber(move.to)][move.color + (move.promotion || move.piece)];
 	if (move.captured) {
 		const oppositeColor = move.color == 'w' ? 'b' : 'w'
 		let enPassantOffset = (oppositeColor == "b" ? 1 : -1) * (move.flags.includes('e') ? 8 : 0);
@@ -98,8 +152,9 @@ function getZobristKey(chess) {
 	return keys.reduce((xored, toxor) => xored ^ toxor)
 }
 window.getZobristKey = getZobristKey
-function evaluate(chess, plMoves, engineSide) {
+function evaluate(chess, plMoves, engineSide, isDepthOdd) {
 	let result = 0;
+	const otherSide = engineSide == 'w' ? 'b' : 'w'
 	const board = chess.board();
 	for (let i = 0; i < board.length; i++) {
 		for (let j = 0; j < board[i].length; j++) {
@@ -120,9 +175,15 @@ function evaluate(chess, plMoves, engineSide) {
 	// });
 	if (chess.in_checkmate()) result = 10000;
 	if (chess.in_draw()) result = 0;
-	if (plMoves?.length) result += (plMoves.length - chess.moves().length) * 0.01
-
-	// const lastMove = chess.history({verbose: true});
+	if (plMoves?.length) result += isDepthOdd ? (chess.moves().length - plMoves.length) * 0.01 : (plMoves.length - chess.moves().length ) * 0.01
+	if (engineSide == 'w') {
+		result -= (countDoubledPawns(chess, engineSide) - countDoubledPawns(chess, otherSide)) * 0.05
+		//  - (countIsolatedPawn(chess, engineSide) - countIsolatedPawn(chess, otherSide)) * 0.05
+	}
+	else {
+		result -= (countDoubledPawns(chess, otherSide) - countDoubledPawns(chess, engineSide)) * 0.05
+		//  - (countIsolatedPawn(chess, otherSide) - countIsolatedPawn(chess, engineSide)) * 0.05
+	}
 
 	// if(chess.in_check()) result += 1;
 	return result
@@ -130,20 +191,25 @@ function evaluate(chess, plMoves, engineSide) {
 
 
 function calculate(chess, depth) {
+
 	let moves = chess.moves();
 	let engineSide = chess.turn();
 	let bestMove = null;
+	let isDepthOdd = depth % 2 == 1;
 
 	let bestScore = -Infinity;
 	let transpositionTable = Object.create(null);
 	// const beginningDepth = depth;
-	function negamax(chess, depth, alpha, beta, color, plMoves, zobristKey) {
+	function negamax(chess, depth, alpha, beta, color, plMoves, zobristKey, isDepthOdd) {
 
 		if (depth == 0) {
-			return quiescenceSearch(alpha, beta, chess, plMoves, engineSide, color)
+			return quiescenceSearch(alpha, beta, chess, plMoves, engineSide, color, isDepthOdd)
 		}
 		// if(!zobristKey) zobristKey = getZobristKey(chess);
-		if (zobristKey in transpositionTable) return transpositionTable[zobristKey];
+		if (zobristKey in transpositionTable) {
+			console.log('trans table hit')
+			return transpositionTable[zobristKey];
+		}
 
 		const searchMoves = chess.moves({ verbose: true });
 		// TODO: add killer moves in move ordering
@@ -163,10 +229,10 @@ function calculate(chess, depth) {
 			const move = searchMoves[i];
 			chess.move(move);
 			zobristKey = updateZobristKey(zobristKey, move)
-			const score = -negamax(chess, depth - 1, -beta, -alpha, -color, searchMoves, zobristKey)
+			const score = -negamax(chess, depth - 1, -beta, -alpha, -color, searchMoves, zobristKey, isDepthOdd)
 			chess.undo()
 			zobristKey = updateZobristKey(zobristKey, move)
-			if(score >= beta) return beta
+			if (score >= beta) return beta
 			alpha = Math.max(alpha, score);
 		}
 		// chess.undo()
@@ -177,7 +243,7 @@ function calculate(chess, depth) {
 	for (let i = 0; i < moves.length; i++) {
 		const move = moves[i];
 		chess.move(move);
-		const score = -negamax(chess, depth - 1, -Infinity, Infinity, 1, [], getZobristKey(chess))
+		const score = -negamax(chess, depth - 1, -Infinity, Infinity, 1, [], getZobristKey(chess), isDepthOdd)
 		chess.undo();
 		if (score > bestScore) {
 			bestScore = score;
@@ -185,6 +251,10 @@ function calculate(chess, depth) {
 		}
 	}
 	console.log(`eval: ${bestScore}`)
+	// console.log("white bit board\n", bitboardToChessboard(bitboards.wp))
+	// console.log("black bit board\n", bitboardToChessboard(bitboards.bp))
+	// console.log("white doubled pawns: ", countDoubledPawns(bitboards.wp));
+	// console.log("black doubled pawns: ", countDoubledPawns(bitboards.bp));
 	return bestMove;
 }
-export { calculate, evaluate }
+export { calculate, countDoubledPawns }

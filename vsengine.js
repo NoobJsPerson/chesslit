@@ -7,12 +7,28 @@ import { FEN } from "./cm-chessboard/model/Position.js"
 
 
 
-import { calculate } from "./engine.js"
+import { calculate, countDoubledPawns } from "./engine.js"
 
 
 const chess = new Chess()
 window.chess = chess
-
+window.bitboardToChessboard = function (bitboard) {
+	let chessboard = '';
+	
+	for (let rank = 7n; rank >= 0n; rank--) {
+	  for (let file = 0n; file < 8n; file++) {
+		const squareIndex = rank * 8n + file;
+		const mask = 1n << squareIndex;
+		const isPawn = (bitboard & mask) !== 0n;
+		chessboard += isPawn ? '1' : '0';
+	  }
+	  chessboard += '\n';
+	}
+  
+	console.log(chessboard);
+  }
+  window.countDoubledPawns = countDoubledPawns
+//   window.countIsolatedPawns = countIsolatedPawns
 // let turn = true;
 function makeEngineMove(chessboard) {
 	const possibleMoves = chess.moves()
@@ -20,8 +36,15 @@ function makeEngineMove(chessboard) {
 		let engineMove
 		if(possibleMoves.length == 1) engineMove = possibleMoves[0];
 		else engineMove = calculate(chess, 3);
-		console.log(engineMove)
+		if(engineMove === null){
+			console.log("null move, this shouldnt happen (most likely the engine realised it cant prevent checkmate so it cut all nodes, i think it is because of the use of infinity)")
+			engineMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)]
+		}
 		setTimeout(() => { // smoother with 500ms delay
+			if(chess.isGameOver()) {
+				console.log('game over')
+				return
+			}
 			chess.move(engineMove)
 			chessboard.setPosition(chess.fen(), true)
 			chessboard.enableMoveInput(inputHandler, COLOR.white)
@@ -90,7 +113,9 @@ let board = new Chessboard(document.getElementById("containerId"),
 		]
 	})
 window.board = board;
-
+// chess.load_pgn('1. e4 Nf6 2. Bc4 Nxe4 3. Bxf7+ Kxf7 4. Qh5+ Ke6 5. Qe2 Kf5 6. g4+ Ke5 7. Nf3+ Kf4 8. Rg1 Ng3 9. Qe5+')
+// board.setPosition(chess.fen(), true)
+// makeEngineMove(board)
 board.enableMoveInput(inputHandler, COLOR.white)
 
 
