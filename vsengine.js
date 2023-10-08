@@ -41,7 +41,7 @@ function makeEngineMove(chessboard) {
 			engineMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)]
 		}
 		setTimeout(() => { // smoother with 500ms delay
-			if(chess.isGameOver()) {
+			if(chess.game_over()) {
 				console.log('game over')
 				return
 			}
