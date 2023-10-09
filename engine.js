@@ -251,7 +251,7 @@ function calculate(chess, depth) {
 		return see(chess, moves, b.to) - see(chess, moves, a.to); // sort by highest SEE
 	});
 	for (let i = 1; i <= depth ; i++) {
-		bestScore = -Infinity
+		bestScore = -Infinity;
 		for (let j = 0; j < moves.length; j++) {
 			const move = moves[j];
 			chess.move(move);
@@ -268,7 +268,7 @@ function calculate(chess, depth) {
 			return 0;
 		})
 	}
-	console.log(`eval: ${bestScore}`)
+	// console.log(`eval: ${bestScore}`)
 	return bestMove;
 }
 export { calculate, countDoubledPawns, countIsolatedPawns }
