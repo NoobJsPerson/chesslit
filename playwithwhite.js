@@ -11,7 +11,13 @@ import { calculate } from "./engine.js"
 
 
 const chess = new Chess()
-window.chess = chess
+// window.chess = chess
+let depth = 3;
+const depthInput = document.getElementById('depth-input')
+depthInput.onchange = () => {
+	depth = +depthInput.value
+	// console.log(depth)
+}
 
 // let turn = true;
 function makeEngineMove(chessboard) {
@@ -19,7 +25,7 @@ function makeEngineMove(chessboard) {
 	if (possibleMoves.length > 0) {
 		let engineMove
 		if(possibleMoves.length == 1) engineMove = possibleMoves[0];
-		else engineMove = calculate(chess, 3);
+		else engineMove = calculate(chess, depth);
 		console.log(engineMove)
 		setTimeout(() => { // smoother with 500ms delay
 			if(chess.game_over()) {

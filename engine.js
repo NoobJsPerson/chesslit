@@ -1,42 +1,40 @@
 // TODO: implement PV;
-// TODO: fix countIsolatedPawns
-// function countIsolatedPawns(chess, side) {
-// 	const board = chess.board()
-// 	let lastRowEmpty = false;
-// 	let nextRowEmpty = false;
-// 	let isolatedPawns = 0;
-// 	for (let j = 0; j < board.length; j++) {
-// 		let fileHasPawn = false;
-
-// 		for (let i = 0; i < board[j].length; i++) {
-// 			const square = board[i][j];
-// 			if (!fileHasPawn && square?.type == 'p' && square.color == side) fileHasPawn = true;
-// 		}
-// 		if (fileHasPawn) {
-// 			if (lastRowEmpty) lastRowEmpty = false
-// 			else {
-// 				lastRowEmpty = true
-// 				for (let i = 0; i < board[j].length; i++) {
-// 					const square = board[i]?.[j-1];
-// 					if (lastRowEmpty && square?.type == 'p' && square.color == side) lastRowEmpty = false;
-// 				}
-// 			}
-// 			if (nextRowEmpty) {
-// 				nextRowEmpty = false;
-// 			}
-// 			else {
-// 				nextRowEmpty = true
-// 				for (let i = 0; i < board[j].length; i++) {
-// 					const square = board[i]?.[j+1];
-// 					if (nextRowEmpty && square?.type == 'p' && square.color == side) nextRowEmpty = false;
-// 				}
-// 			}
-
-// 			if (nextRowEmpty && lastRowEmpty) isolatedPawns++;
-// 		}
-// 	}
-// 	return isolatedPawns
-// }
+function countIsolatedPawns(chess, side) {
+	const board = chess.board();
+	let isolatedPawns = 0;
+	let iKnowLastRowWasEmpty = false;
+	for (let j = 0; j < board.length; j++) {
+		let fileHasPawn = false;
+		for (let i = 0; i < board[j].length; i++) {
+			if (fileHasPawn) break;
+			const sqaure = board[i][j];
+			if (sqaure && sqaure.type == 'p' && sqaure.color == side) fileHasPawn = true;
+		}
+		if (fileHasPawn) {
+			let lastRowEmpty = true,
+				nextRowEmpty = true;
+			if (iKnowLastRowWasEmpty) iKnowLastRowWasEmpty = false;
+			else {
+				for (let i = 0; i < board[j].length; i++) {
+					if (!lastRowEmpty) break;
+					const sqaure = board[i]?.[j - 1];
+					if (sqaure && sqaure.type == 'p' && sqaure.color == side) lastRowEmpty = false;
+				}
+			}
+			for (let i = 0; i < board[j].length; i++) {
+				if (!nextRowEmpty) break;
+				const sqaure = board[i]?.[j + 1];
+				if (sqaure && sqaure.type == 'p' && sqaure.color == side) nextRowEmpty = false;
+			}
+			if (nextRowEmpty) {
+				j++;
+				iKnowLastRowWasEmpty = true;
+				if (lastRowEmpty) isolatedPawns++;
+			}
+		}
+	}
+	return isolatedPawns
+}
 const zobristKeys = [];
 const pieceValues = {
 	n: 3,
@@ -175,14 +173,14 @@ function evaluate(chess, plMoves, engineSide, isDepthOdd) {
 	// });
 	if (chess.in_checkmate()) result = 10000;
 	if (chess.in_draw()) result = 0;
-	if (plMoves?.length) result += isDepthOdd ? (chess.moves().length - plMoves.length) * 0.01 : (plMoves.length - chess.moves().length ) * 0.01
+	if (plMoves?.length) result += (plMoves.length - chess.moves().length) * 0.01
 	if (engineSide == 'w') {
 		result -= (countDoubledPawns(chess, engineSide) - countDoubledPawns(chess, otherSide)) * 0.05
-		//  - (countIsolatedPawn(chess, engineSide) - countIsolatedPawn(chess, otherSide)) * 0.05
+			+ (countIsolatedPawns(chess, engineSide) - countIsolatedPawns(chess, otherSide)) * 0.05
 	}
 	else {
 		result -= (countDoubledPawns(chess, otherSide) - countDoubledPawns(chess, engineSide)) * 0.05
-		//  - (countIsolatedPawn(chess, otherSide) - countIsolatedPawn(chess, engineSide)) * 0.05
+			+ (countIsolatedPawns(chess, otherSide) - countIsolatedPawns(chess, engineSide)) * 0.05
 	}
 
 	// if(chess.in_check()) result += 1;
@@ -199,7 +197,6 @@ function calculate(chess, depth) {
 
 	let bestScore = -Infinity;
 	let transpositionTable = Object.create(null);
-	// const beginningDepth = depth;
 	function negamax(chess, depth, alpha, beta, color, plMoves, zobristKey, isDepthOdd) {
 
 		if (depth == 0) {
@@ -214,6 +211,7 @@ function calculate(chess, depth) {
 		const searchMoves = chess.moves({ verbose: true });
 		// TODO: add killer moves in move ordering
 		// Applies move ordering (captures/promotions > quiet moves)
+
 		searchMoves.sort((a, b) => {
 			// Compare the 'captured' property
 			if ((a.captured && !b.captured) || (a.promotion && !b.promotion)) {
@@ -232,29 +230,45 @@ function calculate(chess, depth) {
 			const score = -negamax(chess, depth - 1, -beta, -alpha, -color, searchMoves, zobristKey, isDepthOdd)
 			chess.undo()
 			zobristKey = updateZobristKey(zobristKey, move)
-			if (score >= beta) return beta
+			if (score >= beta) {
+				// beta cut-off
+				return beta
+			}
 			alpha = Math.max(alpha, score);
 		}
 		// chess.undo()
 		transpositionTable[zobristKey] = alpha;
 		return alpha;
 	}
-
-	for (let i = 0; i < moves.length; i++) {
-		const move = moves[i];
-		chess.move(move);
-		const score = -negamax(chess, depth - 1, -Infinity, Infinity, 1, [], getZobristKey(chess), isDepthOdd)
-		chess.undo();
-		if (score > bestScore) {
-			bestScore = score;
-			bestMove = move
+	moves.sort((a, b) => {
+		// Compare the 'captured' property
+		if ((a.captured && !b.captured) || (a.promotion && !b.promotion)) {
+			return -1; // 'a' should come before 'b'
 		}
+		if (!a.captured && b.captured || (!a.promotion && b.promotion)) {
+			return 1; // 'b' should come before 'a'
+		}
+		return see(chess, moves, b.to) - see(chess, moves, a.to); // sort by highest SEE
+	});
+	for (let i = 1; i <= depth ; i++) {
+		bestScore = -Infinity
+		for (let j = 0; j < moves.length; j++) {
+			const move = moves[j];
+			chess.move(move);
+			const score = -negamax(chess, i - 1, -Infinity, Infinity, 1, [], getZobristKey(chess), isDepthOdd)
+			chess.undo();
+			if (score > bestScore) {
+				bestScore = score;
+				bestMove = move
+			}
+		}
+		moves.sort((a,b) => {
+			if(a == bestMove) return -1;
+			if(b == bestMove) return 1;
+			return 0;
+		})
 	}
 	console.log(`eval: ${bestScore}`)
-	// console.log("white bit board\n", bitboardToChessboard(bitboards.wp))
-	// console.log("black bit board\n", bitboardToChessboard(bitboards.bp))
-	// console.log("white doubled pawns: ", countDoubledPawns(bitboards.wp));
-	// console.log("black doubled pawns: ", countDoubledPawns(bitboards.bp));
 	return bestMove;
 }
-export { calculate, countDoubledPawns }
+export { calculate, countDoubledPawns, countIsolatedPawns }

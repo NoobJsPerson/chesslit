@@ -7,37 +7,33 @@ import { FEN } from "./cm-chessboard/model/Position.js"
 
 
 
-import { calculate, countDoubledPawns } from "./engine.js"
+import { calculate, countDoubledPawns, countIsolatedPawns } from "./engine.js"
 
 
 const chess = new Chess()
-window.chess = chess
-window.bitboardToChessboard = function (bitboard) {
-	let chessboard = '';
-	
-	for (let rank = 7n; rank >= 0n; rank--) {
-	  for (let file = 0n; file < 8n; file++) {
-		const squareIndex = rank * 8n + file;
-		const mask = 1n << squareIndex;
-		const isPawn = (bitboard & mask) !== 0n;
-		chessboard += isPawn ? '1' : '0';
-	  }
-	  chessboard += '\n';
-	}
-  
-	console.log(chessboard);
-  }
-  window.countDoubledPawns = countDoubledPawns
-//   window.countIsolatedPawns = countIsolatedPawns
-// let turn = true;
+let depth = 3;
+const depthInput = document.getElementById('depth-input')
+depthInput.value = depth
+depthInput.onchange = () => {
+	depth = +depthInput.value
+	// console.log(depth)
+}
+// window.chess = chess
+// window.countDoubledPawns = countDoubledPawns
+// window.countIsolatedPawns = countIsolatedPawns
+
 function makeEngineMove(chessboard) {
 	const possibleMoves = chess.moves()
 	if (possibleMoves.length > 0) {
 		let engineMove
 		if(possibleMoves.length == 1) engineMove = possibleMoves[0];
-		else engineMove = calculate(chess, 3);
+		else {
+			console.time('calculate')
+			engineMove = calculate(chess, depth);
+			console.timeEnd('calculate')
+		}
 		if(engineMove === null){
-			console.log("null move, this shouldnt happen (most likely the engine realised it cant prevent checkmate so it cut all nodes, i think it is because of the use of infinity)")
+			console.log("null move, engine can't stop mate")
 			engineMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)]
 		}
 		setTimeout(() => { // smoother with 500ms delay
