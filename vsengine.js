@@ -12,7 +12,8 @@ import { calculate, countDoubledPawns, countIsolatedPawns } from "./engine.js"
 
 const chess = new Chess()
 let depth = 3;
-const depthInput = document.getElementById('depth-input')
+const depthInput = document.getElementById('depth-input');
+const pgnSpan = document.getElementById('pgn-span');
 depthInput.value = depth
 depthInput.onchange = () => {
 	depth = +depthInput.value
@@ -26,22 +27,23 @@ function makeEngineMove(chessboard) {
 	const possibleMoves = chess.moves()
 	if (possibleMoves.length > 0) {
 		let engineMove
-		if(possibleMoves.length == 1) engineMove = possibleMoves[0];
+		if (possibleMoves.length == 1) engineMove = possibleMoves[0];
 		else {
 			console.time('calculate')
 			engineMove = calculate(chess, depth);
 			console.timeEnd('calculate')
 		}
-		if(engineMove === null){
+		if (engineMove === null) {
 			console.log("null move, engine can't stop mate")
 			engineMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)]
 		}
 		setTimeout(() => { // smoother with 500ms delay
-			if(chess.game_over()) {
+			if (chess.game_over()) {
 				console.log('game over')
 				return
 			}
 			chess.move(engineMove)
+			pgnSpan.innerText = chess.pgn();
 			chessboard.setPosition(chess.fen(), true)
 			chessboard.enableMoveInput(inputHandler, COLOR.white)
 		}, 500)

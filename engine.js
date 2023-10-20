@@ -1,4 +1,5 @@
 // TODO: implement PV;
+import book from './book.json' assert {type: 'json'};
 function countIsolatedPawns(chess, side) {
 	const board = chess.board();
 	let isolatedPawns = 0;
@@ -11,15 +12,11 @@ function countIsolatedPawns(chess, side) {
 			if (sqaure && sqaure.type == 'p' && sqaure.color == side) fileHasPawn = true;
 		}
 		if (fileHasPawn) {
-			let lastRowEmpty = true,
+			let lastRowEmpty = j == 0 ? true : false,
 				nextRowEmpty = true;
-			if (iKnowLastRowWasEmpty) iKnowLastRowWasEmpty = false;
-			else {
-				for (let i = 0; i < board[j].length; i++) {
-					if (!lastRowEmpty) break;
-					const sqaure = board[i]?.[j - 1];
-					if (sqaure && sqaure.type == 'p' && sqaure.color == side) lastRowEmpty = false;
-				}
+			if (iKnowLastRowWasEmpty) {
+				iKnowLastRowWasEmpty = false;
+				lastRowEmpty = true;
 			}
 			for (let i = 0; i < board[j].length; i++) {
 				if (!nextRowEmpty) break;
@@ -31,6 +28,9 @@ function countIsolatedPawns(chess, side) {
 				iKnowLastRowWasEmpty = true;
 				if (lastRowEmpty) isolatedPawns++;
 			}
+		}
+		else {
+			iKnowLastRowWasEmpty = true;
 		}
 	}
 	return isolatedPawns
@@ -173,7 +173,7 @@ function evaluate(chess, plMoves, engineSide, isDepthOdd) {
 	// });
 	if (chess.in_checkmate()) result = 10000;
 	if (chess.in_draw()) result = 0;
-	if (plMoves?.length) result += (plMoves.length - chess.moves().length) * 0.01
+	if (plMoves?.length) result += isDepthOdd ? (chess.moves().length - plMoves.length) * 0.01 : (plMoves.length - chess.moves().length) * 0.01
 	if (engineSide == 'w') {
 		result -= (countDoubledPawns(chess, engineSide) - countDoubledPawns(chess, otherSide)) * 0.05
 			+ (countIsolatedPawns(chess, engineSide) - countIsolatedPawns(chess, otherSide)) * 0.05
@@ -186,17 +186,85 @@ function evaluate(chess, plMoves, engineSide, isDepthOdd) {
 	// if(chess.in_check()) result += 1;
 	return result
 }
+function evaluateMove(chess, move, engineSide, isDepthOdd) {
+	let result;
+	const plMoves = chess.moves();
+	chess.move(move);
+	result = evaluate(chess, plMoves, engineSide, isDepthOdd);
+	chess.undo();
+	return result;
+}
 
 
 function calculate(chess, depth) {
-
-	let moves = chess.moves();
+	let bookMove = book[chess.fen()];
+	if (bookMove) {
+		if (bookMove instanceof Array) return bookMove[Math.floor(Math.random() * bookMove.length)]
+		return bookMove
+	};
+	let moves = chess.moves({ verbose: true });
 	let engineSide = chess.turn();
 	let bestMove = null;
 	let isDepthOdd = depth % 2 == 1;
 
 	let bestScore = -Infinity;
 	let transpositionTable = Object.create(null);
+	function pvSearch(chess, depth, alpha, beta, color, plMoves, zobristKey, isDepthOdd) {
+
+		if (depth == 0) {
+			return quiescenceSearch(alpha, beta, chess, plMoves, engineSide, color, isDepthOdd)
+		}
+		// if(!zobristKey) zobristKey = getZobristKey(chess);
+		if (zobristKey in transpositionTable) {
+			console.log('trans table hit')
+			return transpositionTable[zobristKey];
+		}
+
+		const searchMoves = chess.moves({ verbose: true });
+		// TODO: add killer moves in move ordering
+		// Applies move ordering (captures/promotions > quiet moves)
+
+		searchMoves.sort((a, b) => {
+			// Compare the 'captured' property
+			if ((a.captured && !b.captured) || (a.promotion && !b.promotion)) {
+				return -1; // 'a' should come before 'b'
+			}
+			if (!a.captured && b.captured || (!a.promotion && b.promotion)) {
+				return 1; // 'b' should come before 'a'
+			}
+			return see(chess, searchMoves, b.to) - see(chess, searchMoves, a.to); // sort by highest SEE
+		});
+		let bSearchPv = true
+		for (let i = 0; i < searchMoves.length; i++) {
+			const move = searchMoves[i];
+			chess.move(move);
+			zobristKey = updateZobristKey(zobristKey, move)
+			let score;
+			if (bSearchPv) {
+				score = -pvSearch(chess, depth - 1, -beta, -alpha, -color, searchMoves, zobristKey, isDepthOdd);
+			} else {
+				score = -pvSearch(chess, depth - 1, -alpha - 1, -alpha, -color, searchMoves, zobristKey, isDepthOdd); // search in null window
+				if (score > alpha) {
+					score = -pvSearch(chess, depth - 1, -beta, -alpha, -color, searchMoves, zobristKey, isDepthOdd); // research
+				}
+			}
+			chess.undo();
+			zobristKey = updateZobristKey(zobristKey, move)
+			if (score >= beta) {
+				// beta cut-off
+				return beta
+			}
+			if (score > alpha) {
+				alpha = score;
+				bSearchPv = false;
+				// update the PV here
+			}
+			// alpha = Math.max(alpha, score);
+		}
+		// chess.undo()
+		if(bSearchPv) transpositionTable[zobristKey] = alpha;
+		return alpha;
+	}
 	function negamax(chess, depth, alpha, beta, color, plMoves, zobristKey, isDepthOdd) {
 
 		if (depth == 0) {
@@ -234,12 +302,19 @@ function calculate(chess, depth) {
 				// beta cut-off
 				return beta
 			}
-			alpha = Math.max(alpha, score);
+			if (score > alpha) {
+				alpha = score;
+				// update the PV here
+			}
+			// alpha = Math.max(alpha, score);
 		}
 		// chess.undo()
 		transpositionTable[zobristKey] = alpha;
 		return alpha;
 	}
+	// for (let i = 0; i < moves.length; i++) {
+	// 	moves[i].evaluation = evaluateMove(chess, moves[i], engineSide, isDepthOdd);
+	// }
 	moves.sort((a, b) => {
 		// Compare the 'captured' property
 		if ((a.captured && !b.captured) || (a.promotion && !b.promotion)) {
@@ -248,27 +323,19 @@ function calculate(chess, depth) {
 		if (!a.captured && b.captured || (!a.promotion && b.promotion)) {
 			return 1; // 'b' should come before 'a'
 		}
-		return see(chess, moves, b.to) - see(chess, moves, a.to); // sort by highest SEE
+		return see(chess, moves, b.to) - see(chess, moves, a.to) /* || b.evaluation - a.evaluation */; // sort by highest SEE
 	});
-	for (let i = 1; i <= depth ; i++) {
-		bestScore = -Infinity;
-		for (let j = 0; j < moves.length; j++) {
-			const move = moves[j];
-			chess.move(move);
-			const score = -negamax(chess, i - 1, -Infinity, Infinity, 1, [], getZobristKey(chess), isDepthOdd)
-			chess.undo();
-			if (score > bestScore) {
-				bestScore = score;
-				bestMove = move
-			}
+	for (let i = 0; i < moves.length; i++) {
+		const move = moves[i];
+		chess.move(move);
+		const score = -negamax(chess, depth - 1, -Infinity, Infinity, 1, [], getZobristKey(chess), isDepthOdd)
+		chess.undo();
+		if (score > bestScore) {
+			bestScore = score;
+			bestMove = move
 		}
-		moves.sort((a,b) => {
-			if(a == bestMove) return -1;
-			if(b == bestMove) return 1;
-			return 0;
-		})
 	}
-	// console.log(`eval: ${bestScore}`)
+	console.log(`eval: ${bestScore}`)
 	return bestMove;
 }
 export { calculate, countDoubledPawns, countIsolatedPawns }

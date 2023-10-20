@@ -10,7 +10,7 @@ import { calculate } from "./engine.js"
 
 const chess = new Chess();
 const depthInput = document.getElementById('depth-input');
-let depth = 1;
+let depth = 2;
 depthInput.value = depth
 depthInput.onchange = () => {
 	depth = +depthInput.value
@@ -24,10 +24,14 @@ function makeEngineMove(chessboard) {
 	if (possibleMoves.length > 0) {
 		let engineMove
 		if (possibleMoves.length == 1) engineMove = possibleMoves[0];
-		else engineMove = calculate(chess, depth);
+		else {
+			console.time('calculate')
+			engineMove = calculate(chess, depth);
+			console.timeEnd('calculate')
+		}
 		console.log(engineMove)
 		setTimeout(() => { // smoother with 500ms delay
-			if(chess.game_over()) {
+			if (chess.game_over()) {
 				console.log('game over')
 				return
 			}
@@ -49,8 +53,8 @@ let board = new Chessboard(document.getElementById("containerId"),
 		]
 	})
 window.board = board;
-
-board.setPosition(chess.fen(), true);
+// chess.load_pgn('1.e4 e5 2.f4 exf4 3.Nf3')
+// board.setPosition(chess.fen(), true);
 makeEngineMove(board)
 
 
